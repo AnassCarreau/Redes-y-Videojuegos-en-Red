@@ -1,70 +1,97 @@
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <netdb.h>
 #include <string.h>
-#include <iostream> 
 #include <unistd.h>
+#include <iostream>
+#include <time.h>
 
- int main(int argc, char *argv[])
-       {
-           struct addrinfo hints;
-           struct addrinfo *result;
+int main(int argc, char **argv)
+{
+   struct addrinfo hints;
+   struct addrinfo *res;
 
-           /* Obtain address(es) matching host/port */
- 
-           memset(&hints, 0, sizeof(struct addrinfo));
+   /* Obtain address(es) matching host/port */
 
-          hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
-          hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
-        // hints.ai_flags = 0;
-        // hints.ai_protocol = 0;          / Any protocol /
+   memset((void *)&hints, 0, sizeof(struct addrinfo));
 
-         int  rc = getaddrinfo(argv[1], argv[2], &hints, &result);
-         
-           if (rc != 0) {
-               fprintf(stderr, "Error: %s\n", gai_strerror(rc));
-              return -1;
-           }
+   hints.ai_family = AF_INET;      /* Allow IPv4 or IPv6 */
+   hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
 
-            int sock=socket(result->ai_family,result->ai_socktype,result->ai_protocol);
+   int rc = getaddrinfo(argv[1], argv[2], &hints, &res);
 
-        if (sock == -1) 
-           {
-               std::cerr << "[socket]:creacion socket\n";
-              return -1;
-           }
-            bind(sock,result->ai_addr,result->ai_addrlen);
+   if (rc != 0)
+   {
+      std::cerr << "Error: " << gai_strerror(rc) << "\n";
+      return -1;
+   }
 
-           freeaddrinfo(result);           /* No longer needed */
-        while (true)
-        {
-            char buffer[80];
-            struct sockaddr  client;
-            socklen_t        clientlen =sizeof(struct sockaddr);
-               char host[NI_MAXHOST];
-               char serv[NI_MAXSERV];
+   int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
-           int bytes = recvfrom(sock,(void *)buffer,79,0,&client,&clientlen);
+   if (sock == -1)
+   {
+      std::cerr << "[socket]\n";
+      return -1;
+   }
 
-           buffer[bytes]='\0';
-        
-           if (bytes == -1) 
-           {
-              return -1;
-           }  
+   if (bind(sock, res->ai_addr, res->ai_addrlen) == -1)
+   {
+      std::cerr << "[bind]\n";
+      return -1;
+   }
 
-               getnameinfo(&client,clientlen,host,NI_MAXHOST,serv
-               ,NI_MAXSERV,NI_NUMERICHOST);
+   freeaddrinfo(res); /* No longer needed */
+   char buffer[80];
 
-            std::cout <<"Host :" << host <<"Port: "<<serv <<std::endl;
-            std::cout <<"\tData :" <<buffer <<std::endl;
-            int send =sendto(sock,(void *)buffer,bytes,0,&client,clientlen);
-        if ( send == -1) 
-           {
-              return -1;
-           }  
+   char host[NI_MAXHOST];
+   char serv[NI_MAXSERV];
 
-        }
-        
-          close(sock);
+   struct sockaddr client;
+   socklen_t clientlen = sizeof(struct sockaddr);
+   bool exit = false;
 
-          return 0; 
-    }
+   time_t time_;
+   struct tm *tm_;
+   while (!exit)
+   {
+
+      int bytes = recvfrom(sock, (void *)buffer, 79 * sizeof(char), 0, &client, &clientlen);
+
+      if (bytes == -1)
+      {
+         return -1;
+      }
+
+      getnameinfo(&client, clientlen, host, NI_MAXHOST, serv, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
+
+      std::cout << bytes << " bytes de " << host << ":" << serv << std::endl;
+     
+   
+      switch (buffer[0])
+      {
+      case 't':
+         time(&time_);
+         tm_ = localtime(&time_);
+         bytes = strftime(buffer, 80, "%T %p", tm_);
+         sendto(sock, buffer, bytes, 0, &client, clientlen);
+         break;
+      case 'd':
+         time(&time_);
+         tm_ = localtime(&time_);
+         bytes = strftime(buffer, 80, "%F", tm_);
+         sendto(sock, buffer, bytes, 0, &client, clientlen);
+         break;
+      case 'q':
+         exit = true;
+         std::cout << "Saliendo..." << std::endl;
+         break;
+      default:
+         std::cout << "Comando no soportado " << buffer[0] << std::endl;
+         break;
+      }
+   }
+
+   close(sock);
+
+   return 0;
+}
