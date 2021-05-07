@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     listen(sock, 5);
 
     freeaddrinfo(res); /* No longer needed */
-    char buffer[80];
+                       // char buffer[80];
 
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
@@ -64,15 +64,20 @@ int main(int argc, char **argv)
         getnameinfo(&client, clientlen, host, NI_MAXHOST, serv, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
 
         std::cout << "Conexion desde " << host << " " << serv << std::endl;
+        char buffer[80];
 
-        int c, i;
+        int c;
+
         do
         {
-            c = recv(cliente_sd, &(buffer[i]), 1, 0);
-            send(cliente_sd, buffer, i, 0);
-        } while (c >= 0 && i < 79 && buffer[i++] != '\n');
+            c = recv(cliente_sd, (void *)buffer, 1, 0);
+            if (c == 0)
+            {
+                std::cout << "Conexión terminada" << std::endl;
+            }
+            send(cliente_sd, buffer, 1, 0);
 
-        std::cout << "Conexion terminada " << std::endl;
+        } while (c > 0 /*&& buffer[0] != '\n'*/);
     }
 
     close(sock);
