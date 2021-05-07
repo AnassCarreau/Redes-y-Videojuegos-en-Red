@@ -53,7 +53,6 @@ int main(int argc, char **argv)
         char buffer[80];
         do
         {
-            /* code */
 
             std::cin >> buffer;
           if(!strcmp(buffer,"Q"))continue;
