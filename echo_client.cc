@@ -14,9 +14,9 @@ int main(int argc, char **argv)
     /* Obtain address(es) matching host/port */
 
     memset((void *)&hints, 0, sizeof(struct addrinfo));
-
-    hints.ai_family = AF_INET;      /* Allow IPv4 or IPv6 */
-    hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
+    hints.ai_flags = AI_PASSIVE;     //Devolver 0.0.0.0
+    hints.ai_family = AF_INET;       /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
 
     int rc = getaddrinfo(argv[1], argv[2], &hints, &res);
 
@@ -35,30 +35,38 @@ int main(int argc, char **argv)
     }
 
     freeaddrinfo(res); /* No longer needed */
-    char buffer[80];
-
-    char host[NI_MAXHOST];
-    char serv[NI_MAXSERV];
+                       // char buffer[80];
 
     struct sockaddr server;
     socklen_t serverlen = sizeof(struct sockaddr);
-    bool exit = false;
 
-    sendto(sock, argv[3], strlen(argv[3]) + 1, 0, res->ai_addr, res->ai_addrlen);
-
-    int bytes = recvfrom(sock, (void *)buffer, 79 * sizeof(char), 0,res->ai_addr,&res->ai_addrlen);
-
-    if (bytes == -1)
+    while (true)
     {
-        return -1;
+
+        int server_sd = connect(sock, (struct sockaddr *)res->ai_addr, res->ai_addrlen);
+
+        if (server_sd == -1)
+        {
+            return -1;
+        }
+
+        char buffer[80];
+        do
+        {
+            /* code */
+
+            std::cin >> buffer;
+          if(!strcmp(buffer,"Q"))continue;
+            send(server_sd, buffer, 1, 0);
+
+            recv(server_sd, (void *)buffer, 1, 0);
+
+            std::cout << buffer<<  std::endl;
+
+        } while (strcmp(buffer,"Q"));
     }
 
-    std::cout << buffer << std::endl;
-
-    //}
-
-       close(sock);
-
+    close(sock);
 
     return 0;
 }
