@@ -5,6 +5,38 @@
 #include <unistd.h>
 #include <iostream>
 #include <time.h>
+#include <thread>
+#include <vector>
+#define MAX_THREADS 5
+
+class MessageThread
+{
+private:
+    int sock;
+    int id;
+
+public:
+    MessageThread(int sock, int id) : sock(sock), id(id){};
+    ~MessageThread(){};
+
+    void do_message()
+    {
+
+        int bytes;
+        do
+        {
+            char buffer[80];
+
+            bytes = recv(sock, (void *) buffer, sizeof(char)*79, 0);
+            if ( bytes <= 0 )
+            {
+                std::cout << "Thread ID: " << id << " -> Conexión terminada" << std::endl;
+            }
+
+            send(sock, (void *) buffer, bytes, 0);
+        } while(bytes > 0);
+    }
+};
 
 int main(int argc, char **argv)
 {
@@ -40,10 +72,10 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    listen(sock, 5);
-
     freeaddrinfo(res); /* No longer needed */
                        // char buffer[80];
+
+    listen(sock, 5);
 
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
@@ -51,7 +83,7 @@ int main(int argc, char **argv)
     struct sockaddr client;
     socklen_t clientlen = sizeof(struct sockaddr);
 
-
+    int id = 0;
 
     while (true)
     {
@@ -65,21 +97,12 @@ int main(int argc, char **argv)
 
         getnameinfo(&client, clientlen, host, NI_MAXHOST, serv, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
 
-        std::cout << "Conexion desde " << host << " " << serv << std::endl;
-        char buffer[80];
+        std::cout << "Conexion desde " << host << " " << serv << " Thread: " << id << std::endl;
 
-        int c;
+        MessageThread *th = new MessageThread(sock, id++);
+        std::thread con(&MessageThread::do_message, th);
 
-        do
-        {
-            c = recv(cliente_sd, (void *)buffer, 1, 0);
-            if (c == 0)
-            {
-                std::cout << "Conexión terminada" << std::endl;
-            }
-            send(cliente_sd, buffer, 1, 0);
-
-        } while (c > 0 /*&& buffer[0] != '\n'*/);
+        con.detach();
     }
 
     close(sock);
