@@ -1,9 +1,10 @@
 #include <netdb.h>
 #include <string.h>
 #include <iostream> 
-
+//Main del ejercicio
  int main(int argc, char *argv[])
        {
+           //filtro y resultado
            struct addrinfo hints;
            struct addrinfo *result;
 

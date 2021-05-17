@@ -8,33 +8,33 @@
 #include <thread>
 #include <vector>
 #define MAX_THREADS 5
+#define MAX_LISTEN 5
 
 class MessageThread
 {
 private:
-    int sock;
     int id;
 
 public:
-    MessageThread(int sock, int id) : sock(sock), id(id){};
+    MessageThread( int id) : id(id){};
     ~MessageThread(){};
 
     void do_message()
     {
 
         int bytes;
+        char buffer[80];
         do
         {
-            char buffer[80];
-
-            bytes = recv(sock, (void *) buffer, sizeof(char)*79, 0);
-            if ( bytes <= 0 )
+            bytes = recv(id, (void *)buffer, sizeof(char) * 79, 0);
+            if (bytes <= 0)
             {
-                std::cout << "Thread ID: " << id << " -> Conexión terminada" << std::endl;
+                std::cout << " Conexión terminada" << std::endl;
             }
 
-            send(sock, (void *) buffer, bytes, 0);
-        } while(bytes > 0);
+            send(id, (void *)buffer, bytes, 0);
+        } while (bytes > 0);
+        close(id);
     }
 };
 
@@ -73,35 +73,36 @@ int main(int argc, char **argv)
     }
 
     freeaddrinfo(res); /* No longer needed */
-                       // char buffer[80];
 
-    listen(sock, 5);
-
-    char host[NI_MAXHOST];
-    char serv[NI_MAXSERV];
-
-    struct sockaddr client;
-    socklen_t clientlen = sizeof(struct sockaddr);
+    if (listen(sock, MAX_LISTEN) == -1)
+    {
+        return -1;
+    }
 
     int id = 0;
 
     while (true)
     {
 
+        char host[NI_MAXHOST];
+        char serv[NI_MAXSERV];
+
+        struct sockaddr client;
+        socklen_t clientlen = sizeof(struct sockaddr);
+
         int cliente_sd = accept(sock, (struct sockaddr *)&client, &clientlen);
 
-        if (clientlen == -1)
+        if (cliente_sd == -1)
         {
             return -1;
         }
 
         getnameinfo(&client, clientlen, host, NI_MAXHOST, serv, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
 
-        std::cout << "Conexion desde " << host << " " << serv << " Thread: " << id << std::endl;
+        std::cout << "Conexion desde " << host << " Puerto:" << serv  << std::endl;
 
-        MessageThread *th = new MessageThread(sock, id++);
+        MessageThread *th = new MessageThread(cliente_sd);
         std::thread con(&MessageThread::do_message, th);
-
         con.detach();
     }
 
