@@ -74,31 +74,35 @@ void ChatServer::do_messages()
                 socket.send(em, **it);
             }
             clients.push_back(std::move(std::make_unique<Socket>(*s)));
+            std::cout << "Jugador conectado: " << em.nick << "\n";
             break;
         }
         case ChatMessage::LOGOUT:
         {
-            auto it = clients.begin();
+
             bool found;
             found = false;
-            while (it != clients.end() && !found)
+            std::vector<std::unique_ptr<Socket>>::iterator borrar;
+            for (auto it = clients.begin(); it != clients.end(); it++)
             {
                 if (**it == *s)
                 {
                     found = true;
+                    borrar = it;
                     continue;
                 }
-                ++it;
+                socket.send(em, **it);
             }
+
             if (found)
             {
-                std::cout << "Jugador desconectado:" << em.nick << "\n";
-                clients.erase(it);
-                delete (*it).release();
+                std::cout << "Jugador desconectado: " << em.nick << "\n";
+                (*borrar).release();
+                clients.erase(borrar);
             }
             else
             {
-                std::cout << "El jugador no existe\n";
+                std::cout << "El jugador no esta conectado \n";
             }
 
             break;
@@ -124,6 +128,7 @@ void ChatServer::do_messages()
 void ChatClient::login()
 {
     std::string msg;
+    exit = false;
     ChatMessage em(nick, msg);
     em.type = ChatMessage::LOGIN;
 
@@ -143,12 +148,17 @@ void ChatClient::logout()
 void ChatClient::input_thread()
 {
 
-    while (true)
+    while (!exit)
     {
         std::string msg;
 
         // Leer stdin con std::getline
         std::getline(std::cin, msg);
+        if (msg == "exit")
+        {
+            exit = true;
+            continue;
+        }
         ChatMessage em(nick, msg);
         em.type = ChatMessage::MESSAGE;
 
@@ -159,7 +169,7 @@ void ChatClient::input_thread()
 
 void ChatClient::net_thread()
 {
-    while (true)
+    while (!exit)
     {
         //Recibir Mensajes de red
         ChatMessage em;
