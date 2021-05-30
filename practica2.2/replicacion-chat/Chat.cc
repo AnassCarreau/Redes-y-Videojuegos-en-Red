@@ -15,10 +15,10 @@ void ChatMessage::to_bin()
     memcpy(tmp, &type, sizeof(uint8_t));
     tmp += sizeof(uint8_t);
     //Copiar nick a partir de direccion
-    memcpy(tmp, &nick, sizeof(std::string));
-    tmp += sizeof(std::string);
+    memcpy(tmp, nick.c_str(), sizeof(char) * 8);
+    tmp += sizeof(char) * 8;
     //Copiar message a partir de direccion
-    memcpy(tmp, &message, sizeof(std::string));
+    memcpy(tmp, message.c_str(), sizeof(char) * 80);
 }
 
 int ChatMessage::from_bin(char *bobj)
@@ -34,7 +34,7 @@ int ChatMessage::from_bin(char *bobj)
     tmp += sizeof(uint8_t);
     //Copiar nick a partir de direccion
     nick = tmp;
-    tmp += sizeof(std::string);
+    tmp += sizeof(char) * 8;
     //Copiar message a partir de direccion
     message = tmp;
     return 0;
@@ -60,14 +60,22 @@ void ChatServer::do_messages()
 
         ChatMessage em;
         Socket *s;
-
-        //Esperamos recibir un mensaje de cualquier socket
         socket.recv(em, s);
         switch (em.type)
         {
         case ChatMessage::LOGIN:
+        {
+            for (auto it = clients.begin(); it != clients.end(); it++)
+            {
+                if (**it == *s)
+                {
+                    continue;
+                }
+                socket.send(em, **it);
+            }
             clients.push_back(std::move(std::make_unique<Socket>(*s)));
             break;
+        }
         case ChatMessage::LOGOUT:
         {
             auto it = clients.begin();
@@ -92,6 +100,7 @@ void ChatServer::do_messages()
             {
                 std::cout << "El jugador no existe\n";
             }
+
             break;
         }
         case ChatMessage::MESSAGE:
@@ -115,7 +124,6 @@ void ChatServer::do_messages()
 void ChatClient::login()
 {
     std::string msg;
-
     ChatMessage em(nick, msg);
     em.type = ChatMessage::LOGIN;
 
@@ -134,12 +142,13 @@ void ChatClient::logout()
 
 void ChatClient::input_thread()
 {
+
     while (true)
     {
-        // Leer stdin con std::getline
         std::string msg;
-        std::getline(std::cin, msg);
 
+        // Leer stdin con std::getline
+        std::getline(std::cin, msg);
         ChatMessage em(nick, msg);
         em.type = ChatMessage::MESSAGE;
 
@@ -155,7 +164,20 @@ void ChatClient::net_thread()
         //Recibir Mensajes de red
         ChatMessage em;
         socket.recv(em);
-        //Mostrar en pantalla el mensaje de la forma "nick: mensaje"
-        std::cout << em.nick << ": " << em.message << "\n";
+        if (em.type == ChatMessage::LOGIN)
+        {
+            std::cout << em.nick << " se unio al chat "
+                      << "\n";
+        }
+        else if (em.type == ChatMessage::LOGOUT)
+        {
+            std::cout << em.nick << " se desconecto del chat "
+                      << "\n";
+        }
+        else
+        {
+            //Mostrar en pantalla el mensaje de la forma "nick: mensaje"
+            std::cout << em.nick << ": " << em.message << "\n";
+        }
     }
 }
